@@ -1,0 +1,64 @@
+name: Daily Crypto News Podcast
+
+on:
+  schedule:
+    # 每天 UTC 时间 00:00 运行（北京时间 08:00）
+    - cron: '0 0 * * *'
+  workflow_dispatch:  # 允许手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  generate-crypto-podcast:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Lab-02-Podcast
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install GitHub Copilot CLI
+        run: |
+          npm install -g @github/copilot
+          command -v copilot
+          copilot --version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt --pre
+
+      - name: Run crypto news podcast workflow
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          GITHUB_COPILOT_MODEL: gpt-5.4
+          GITHUB_COPILOT_TIMEOUT: "60"
+          GITHUB_COPILOT_CLI_PATH: copilot
+          GITHUB_COPILOT_LOG_LEVEL: info
+        run: |
+          python podcast_workflow.py -t "今天币圈新闻"
+
+      - name: Commit and push changes
+        working-directory: ${{ github.workspace }}
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          git add .
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🎙️ Generate crypto news podcast: 今天币圈新闻"
+            git push
+          fi
